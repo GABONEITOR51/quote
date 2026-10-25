@@ -51,20 +51,10 @@
   hr { border: none; border-top: 1px dashed #000; margin: 8px 0; }
   .seccion { text-align: center; font-weight: 800; font-size: 14px; margin: 6px 0; }
 
-  /* Cajas de opciones */
-  .opcion { border: 2px solid #000; border-radius: 6px; margin: 8px 0; padding: 6px; }
-  .op-head { display: flex; align-items: baseline; gap: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 5px; }
-  .op-num { background: #000; color: #fff; font-weight: 800; padding: 1px 7px; border-radius: 4px; font-size: 16px; }
-  .op-nombre { font-weight: 800; font-size: 15px; line-height: 1.15; }
-  .op-desc { font-size: 12px; margin: 0 0 5px; text-transform: none; }
 
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   td { padding: 2px 0; vertical-align: top; }
   td.num { text-align: right; white-space: nowrap; }
-  tr.sum td { border-top: 1px solid #000; font-weight: 800; padding-top: 3px; }
-  tr.pagar td { font-size: 17px; font-weight: 800; }
-  .resto { margin-top: 4px; font-size: 13px; display: flex; justify-content: space-between; }
-  .total-plan { margin-top: 3px; font-size: 13px; display: flex; justify-content: space-between; font-weight: 800; }
 
   /* Tabla mes a mes */
   table.mm { border: 2px solid #000; font-size: 13px; }
@@ -86,7 +76,7 @@
   @media print {
     @page { size: 80mm auto; margin: 0; }
     body { width: 80mm; }
-    .opcion, .comparar, table.mm { break-inside: avoid; }
+    .comparar, table.mm { break-inside: avoid; }
   }
 </style>
 </head>
@@ -106,32 +96,6 @@
   <div class="dato"><b>VIGENCIA:</b> <span id="vigencia" class="fecha"></span></div>
 
   <hr>
-  <div class="seccion">ELIJA UNA OPCIÓN DE PAGO</div>
-
-  <!-- OPCIÓN 1: PAGO COMPLETO -->
-  <div class="opcion" id="op1">
-    <div class="op-head"><span class="op-num">1</span><span class="op-nombre">PAGO COMPLETO<br><span id="op1meses"></span></span></div>
-    <p class="op-desc">Paga una sola vez y la póliza queda cubierta todo el periodo. No hay pagos mensuales.</p>
-    <table>
-      <tr><td>Cargo de servicio</td><td class="num" id="op1com"></td></tr>
-      <tr><td>Cobro de la compañía</td><td class="num" id="op1cia"></td></tr>
-      <tr class="sum pagar"><td>TOTAL A PAGAR HOY</td><td class="num" id="op1total"></td></tr>
-    </table>
-  </div>
-
-  <!-- OPCIÓN 2: PAGOS MENSUALES -->
-  <div class="opcion" id="op2">
-    <div class="op-head"><span class="op-num">2</span><span class="op-nombre">PAGOS MENSUALES<br><span id="op2meses"></span></span></div>
-    <p class="op-desc">Paga un inicial hoy y el resto en pagos mensuales a la compañía.</p>
-    <table>
-      <tr><td>Cargo de servicio</td><td class="num" id="op2com"></td></tr>
-      <tr><td>Pago inicial a la compañía</td><td class="num" id="op2cia"></td></tr>
-      <tr class="sum pagar"><td>PAGO INICIAL HOY</td><td class="num" id="op2hoy"></td></tr>
-    </table>
-    <div class="resto"><span>+ <span id="op2n"></span> PAGOS DE</span><span id="op2mens"></span></div>
-    <div class="total-plan"><span>TOTAL DEL PLAN</span><span id="op2total"></span></div>
-  </div>
-
   <!-- COMPARACIÓN MES A MES -->
   <div id="mmBox">
     <div class="seccion">COMPARE MES A MES</div>
@@ -206,31 +170,15 @@
   const com = cents(get("comision")) || 0;
   const com2 = get("comision2") !== "" ? (cents(get("comision2")) || 0) : com;
 
-  // Opción 1: pago completo
+  // Totales de cada opción (si faltan los datos de una opción, esa columna no se muestra)
   const completo = cents(get("completo"));
-  let total1 = null;
-  if (completo != null && completo > 0) {
-    total1 = com + completo;
-    $("op1meses").textContent = "(" + meses + " MESES)";
-    $("op1com").textContent = money(com);
-    $("op1cia").textContent = money(completo);
-    $("op1total").textContent = money(total1);
-  } else ocultar("op1");
-
-  // Opción 2: pagos mensuales
+  const total1 = completo != null && completo > 0 ? com + completo : null;
   const inicial = cents(get("inicial")), mensual = cents(get("mensual"));
   let total2 = null, hoy2 = null;
   if (inicial != null && inicial > 0 && mensual != null && mensual > 0) {
     hoy2 = com2 + inicial;
     total2 = hoy2 + mensual * pagos;
-    $("op2meses").textContent = "(" + meses + " MESES)";
-    $("op2com").textContent = money(com2);
-    $("op2cia").textContent = money(inicial);
-    $("op2hoy").textContent = money(hoy2);
-    $("op2n").textContent = pagos;
-    $("op2mens").textContent = money(mensual) + " C/U";
-    $("op2total").textContent = money(total2);
-  } else ocultar("op2");
+  }
 
   // Tabla mes a mes: un renglón por cada mes de la póliza (o por cada pago, si hay más pagos que meses)
   const tiene1 = total1 != null, tiene2 = total2 != null;
