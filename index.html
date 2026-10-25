@@ -34,7 +34,8 @@
     background: #fff;
     text-transform: uppercase;
   }
-  .ticket { padding: 8px 6px; }
+  /* Margen de 6 mm por lado: las impresoras de 80 mm solo imprimen ~72 mm de ancho */
+  .ticket { padding: 8px 6mm; }
   .center { text-align: center; }
   h1 { font-size: 20px; margin: 0; letter-spacing: .5px; }
   .titulo {
@@ -58,7 +59,8 @@
 
   /* Tabla mes a mes */
   table.mm { border: 2px solid #000; font-size: 13px; }
-  table.mm th { background: #000; color: #fff; font-size: 12px; padding: 3px 2px; }
+  /* Encabezado en negro sobre blanco (los navegadores no imprimen fondos) */
+  table.mm th { color: #000; font-size: 13px; font-weight: 800; padding: 3px 2px; border-bottom: 2px solid #000; }
   table.mm th.n { text-align: right; }
   table.mm td { border-bottom: 1px solid #999; padding: 3px 2px; }
   table.mm td.mes { font-weight: 700; line-height: 1.15; }
