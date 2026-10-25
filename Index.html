@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cotización - 805 MULTISERVICES</title>
+<!--
+  COTIZACIÓN DE PÓLIZA DE SEGURO (ticket de 80 mm)
+  Todos los datos llegan por la liga (?cliente=...&comision=...). Nada se guarda aquí:
+  GitHub Pages solo muestra la página; no hay datos de clientes en este archivo.
+
+  Parámetros:
+    cliente, telefono, compania (o producto), vehiculo, leatendio, nota
+    comision       -> comisión / cargo de servicio de la oficina
+    completo       -> cobro exacto de la compañía por los 6 meses completos
+    inicial        -> cobro exacto de la compañía como pago inicial (plan mensual)
+    mensual        -> pago al mes de la compañía
+    pagos          -> número de pagos mensuales (por defecto 5)
+    meses          -> duración de la póliza en meses (por defecto 6)
+    comision2      -> comisión del plan mensual si es distinta (por defecto = comision)
+    inicio         -> fecha de inicio MM/DD/YYYY (o YYYY-MM-DD). Por defecto: hoy
+    imprimir=0     -> no abrir la ventana de impresión al cargar
+  Si faltan los datos de una opción, esa opción no se muestra.
+-->
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    width: 80mm;
+    margin: 0;
+    padding: 0;
+    font-size: 15px;
+    color: #000;
+    background: #fff;
+    text-transform: uppercase;
+  }
+  .ticket { padding: 8px 6px; }
+  .center { text-align: center; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: .5px; }
+  .titulo {
+    margin: 6px 0 4px;
+    padding: 5px 0;
+    border: 2px solid #000;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 3px;
+  }
+  .sub { font-size: 12px; margin-bottom: 6px; }
+  .dato { margin: 3px 0; font-size: 14px; }
+  .dato b { font-weight: 700; }
+  hr { border: none; border-top: 1px dashed #000; margin: 8px 0; }
+  .seccion { text-align: center; font-weight: 800; font-size: 14px; margin: 6px 0; }
+
+  /* Cajas de opciones */
+  .opcion { border: 2px solid #000; border-radius: 6px; margin: 8px 0; padding: 6px; }
+  .op-head { display: flex; align-items: baseline; gap: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 5px; }
+  .op-num { background: #000; color: #fff; font-weight: 800; padding: 1px 7px; border-radius: 4px; font-size: 16px; }
+  .op-nombre { font-weight: 800; font-size: 15px; line-height: 1.15; }
+  .op-desc { font-size: 12px; margin: 0 0 5px; text-transform: none; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td { padding: 2px 0; vertical-align: top; }
+  td.num { text-align: right; white-space: nowrap; }
+  tr.sum td { border-top: 1px solid #000; font-weight: 800; padding-top: 3px; }
+  tr.pagar td { font-size: 17px; font-weight: 800; }
+  .resto { margin-top: 4px; font-size: 13px; display: flex; justify-content: space-between; }
+  .total-plan { margin-top: 3px; font-size: 13px; display: flex; justify-content: space-between; font-weight: 800; }
+
+  /* Tabla mes a mes */
+  table.mm { border: 2px solid #000; font-size: 13px; }
+  table.mm th { background: #000; color: #fff; font-size: 12px; padding: 3px 2px; }
+  table.mm th.n { text-align: right; }
+  table.mm td { border-bottom: 1px solid #999; padding: 3px 2px; }
+  table.mm td.mes { font-weight: 700; line-height: 1.15; }
+  table.mm td.mes small { display: block; font-weight: 400; font-size: 11px; }
+  table.mm td.num { font-weight: 800; font-size: 14px; }
+  table.mm tr.tot td { border-top: 2px solid #000; border-bottom: none; font-weight: 800; font-size: 14px; }
+  .leyenda { font-size: 10px; text-transform: none; margin-top: 2px; }
+
+  .comparar { border: 2px dashed #000; border-radius: 6px; padding: 6px; margin: 8px 0; font-size: 13px; text-align: center; }
+  .comparar b { font-size: 16px; }
+  .aviso { font-size: 11px; text-transform: none; line-height: 1.3; margin-top: 6px; }
+  .oculto { display: none !important; }
+  .fecha { text-transform: none; }
+
+  @media print {
+    @page { size: 80mm auto; margin: 0; }
+    body { width: 80mm; }
+    .opcion, .comparar, table.mm { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="ticket">
+
+  <div class="center">
+    <h1>805 MULTISERVICES</h1>
+    <div class="titulo">COTIZACIÓN</div>
+    <div class="sub">PÓLIZA DE SEGURO · <span id="fechaHoy" class="fecha"></span></div>
+  </div>
+
+  <div class="dato"><b>CLIENTE:</b> <span id="cliente"></span></div>
+  <div class="dato" id="telRow"><b>TELÉFONO:</b> <span id="telefono"></span></div>
+  <div class="dato" id="ciaRow"><b>COMPAÑÍA:</b> <span id="compania"></span></div>
+  <div class="dato" id="vehRow"><b>VEHÍCULO:</b> <span id="vehiculo"></span></div>
+  <div class="dato"><b>VIGENCIA:</b> <span id="vigencia" class="fecha"></span></div>
+
+  <hr>
+  <div class="seccion">ELIJA UNA OPCIÓN DE PAGO</div>
+
+  <!-- OPCIÓN 1: PAGO COMPLETO -->
+  <div class="opcion" id="op1">
+    <div class="op-head"><span class="op-num">1</span><span class="op-nombre">PAGO COMPLETO<br><span id="op1meses"></span></span></div>
+    <p class="op-desc">Paga una sola vez y la póliza queda cubierta todo el periodo. No hay pagos mensuales.</p>
+    <table>
+      <tr><td>Cargo de servicio</td><td class="num" id="op1com"></td></tr>
+      <tr><td>Cobro de la compañía</td><td class="num" id="op1cia"></td></tr>
+      <tr class="sum pagar"><td>TOTAL A PAGAR HOY</td><td class="num" id="op1total"></td></tr>
+    </table>
+  </div>
+
+  <!-- OPCIÓN 2: PAGOS MENSUALES -->
+  <div class="opcion" id="op2">
+    <div class="op-head"><span class="op-num">2</span><span class="op-nombre">PAGOS MENSUALES<br><span id="op2meses"></span></span></div>
+    <p class="op-desc">Paga un inicial hoy y el resto en pagos mensuales a la compañía.</p>
+    <table>
+      <tr><td>Cargo de servicio</td><td class="num" id="op2com"></td></tr>
+      <tr><td>Pago inicial a la compañía</td><td class="num" id="op2cia"></td></tr>
+      <tr class="sum pagar"><td>PAGO INICIAL HOY</td><td class="num" id="op2hoy"></td></tr>
+    </table>
+    <div class="resto"><span>+ <span id="op2n"></span> PAGOS DE</span><span id="op2mens"></span></div>
+    <div class="total-plan"><span>TOTAL DEL PLAN</span><span id="op2total"></span></div>
+  </div>
+
+  <!-- COMPARACIÓN MES A MES -->
+  <div id="mmBox">
+    <div class="seccion">COMPARE MES A MES</div>
+    <table class="mm">
+      <thead><tr><th style="text-align:left">MES</th><th class="n" id="thOp1">OPCIÓN 1</th><th class="n" id="thOp2">OPCIÓN 2</th></tr></thead>
+      <tbody id="mmBody"></tbody>
+    </table>
+    <div class="leyenda">Lo que paga en cada mes. Vacío: ese mes no paga.</div>
+  </div>
+
+  <div class="comparar" id="comparar"></div>
+
+  <hr>
+  <div class="dato" id="notaRow"><b>NOTA:</b> <span id="nota"></span></div>
+  <div class="dato" id="atRow"><b>LE ATENDIÓ:</b> <span id="leatendio"></span></div>
+
+  <div class="aviso center">
+    Esto es una <b>cotización</b>: no es una póliza ni un recibo de pago.
+    Los precios los fija la compañía de seguros y pueden cambiar.
+    Los pagos mensuales se hacen a la compañía en las fechas indicadas.
+  </div>
+</div>
+
+<script>
+(function () {
+  const p = new URLSearchParams(location.search);
+  const get = (k) => (p.get(k) || "").trim();
+  const $ = (id) => document.getElementById(id);
+  const ocultar = (id) => $(id).classList.add("oculto");
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+  // Dinero en centavos para evitar errores de redondeo
+  const cents = (v) => {
+    const n = parseFloat(String(v).replace(/[$,\s]/g, ""));
+    return isFinite(n) ? Math.round(n * 100) : null;
+  };
+  const money = (c) => "$" + (c / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // Fechas: acepta MM/DD/YYYY o YYYY-MM-DD; muestra "15 Nov 2026" (mes en formato Mmm, sin confusión día/mes)
+  const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  function parseFecha(s) {
+    let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) return new Date(+m[3], +m[1] - 1, +m[2]);
+    m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+    return null;
+  }
+  function sumarMeses(d, n) {               // 31 ENE + 1 mes = 28/29 FEB (no se pasa de mes)
+    const y = d.getFullYear(), mo = d.getMonth() + n, day = d.getDate();
+    const ult = new Date(y, mo + 1, 0).getDate();
+    return new Date(y, mo, Math.min(day, ult));
+  }
+  const fmt = (d) => d.getDate() + " " + MESES[d.getMonth()] + " " + d.getFullYear();
+
+  const hoy = new Date();
+  $("fechaHoy").textContent = fmt(hoy);
+
+  // Datos del cliente
+  $("cliente").textContent = get("cliente");
+  const tel = get("telefono");       if (tel) $("telefono").textContent = tel; else ocultar("telRow");
+  const cia = get("compania") || get("producto"); if (cia) $("compania").textContent = cia; else ocultar("ciaRow");
+  const veh = get("vehiculo");       if (veh) $("vehiculo").textContent = veh; else ocultar("vehRow");
+  const nota = get("nota");          if (nota) $("nota").textContent = nota; else ocultar("notaRow");
+  const at = get("leatendio");       if (at) $("leatendio").textContent = at; else ocultar("atRow");
+
+  const meses = parseInt(get("meses"), 10) || 6;
+  const pagos = parseInt(get("pagos"), 10) || 5;
+  const inicio = parseFecha(get("inicio")) || new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  const fin = sumarMeses(inicio, meses);
+  $("vigencia").textContent = fmt(inicio) + " al " + fmt(fin) + " (" + meses + " meses)";
+
+  const com = cents(get("comision")) || 0;
+  const com2 = get("comision2") !== "" ? (cents(get("comision2")) || 0) : com;
+
+  // Opción 1: pago completo
+  const completo = cents(get("completo"));
+  let total1 = null;
+  if (completo != null && completo > 0) {
+    total1 = com + completo;
+    $("op1meses").textContent = "(" + meses + " MESES)";
+    $("op1com").textContent = money(com);
+    $("op1cia").textContent = money(completo);
+    $("op1total").textContent = money(total1);
+  } else ocultar("op1");
+
+  // Opción 2: pagos mensuales
+  const inicial = cents(get("inicial")), mensual = cents(get("mensual"));
+  let total2 = null, hoy2 = null;
+  if (inicial != null && inicial > 0 && mensual != null && mensual > 0) {
+    hoy2 = com2 + inicial;
+    total2 = hoy2 + mensual * pagos;
+    $("op2meses").textContent = "(" + meses + " MESES)";
+    $("op2com").textContent = money(com2);
+    $("op2cia").textContent = money(inicial);
+    $("op2hoy").textContent = money(hoy2);
+    $("op2n").textContent = pagos;
+    $("op2mens").textContent = money(mensual) + " C/U";
+    $("op2total").textContent = money(total2);
+  } else ocultar("op2");
+
+  // Tabla mes a mes: un renglón por cada mes de la póliza (o por cada pago, si hay más pagos que meses)
+  const tiene1 = total1 != null, tiene2 = total2 != null;
+  if (tiene1 || tiene2) {
+    if (!tiene1) ocultar("thOp1");
+    if (!tiene2) ocultar("thOp2");
+    const filas = Math.max(meses, pagos + 1);
+    const body = $("mmBody");
+    const celda = (pago) => el("td", "num", pago ? money(pago) : "");   // mes sin pago: celda vacía
+    for (let i = 0; i < filas; i++) {
+      const fecha = sumarMeses(inicio, i);
+      const tr = document.createElement("tr");
+      const tdMes = el("td", "mes", String(i + 1));
+      tdMes.appendChild(el("small", "fecha", fmt(fecha)));
+      tr.appendChild(tdMes);
+      if (tiene1) tr.appendChild(celda(i === 0 ? total1 : 0));
+      if (tiene2) tr.appendChild(celda(i === 0 ? hoy2 : (i <= pagos ? mensual : 0)));
+      body.appendChild(tr);
+    }
+    const tot = el("tr", "tot");
+    tot.appendChild(el("td", null, "TOTAL"));
+    if (tiene1) tot.appendChild(el("td", "num", money(total1)));
+    if (tiene2) tot.appendChild(el("td", "num", money(total2)));
+    body.appendChild(tot);
+  } else ocultar("mmBox");
+
+  // Resumen de la diferencia entre las dos opciones
+  if (tiene1 && tiene2) {
+    const dif = total2 - total1, cmp = $("comparar");
+    const l1 = el("div"), l2 = el("div");
+    if (dif > 0) { l1.textContent = "CON PAGO COMPLETO AHORRA"; l2.appendChild(el("b", null, money(dif))); }
+    else if (dif < 0) { l1.textContent = "EL PLAN MENSUAL CUESTA MENOS EN TOTAL:"; l2.appendChild(el("b", null, money(-dif))); }
+    else l1.textContent = "LAS DOS OPCIONES CUESTAN LO MISMO EN TOTAL";
+    const l3 = el("div", null, "HOY PAGA: OPC. 1 " + money(total1) + " · OPC. 2 " + money(hoy2));
+    l3.style.fontSize = "12px"; l3.style.marginTop = "3px";
+    cmp.append(l1, l2, l3);
+  } else ocultar("comparar");
+
+  if (get("imprimir") !== "0") window.addEventListener("load", () => setTimeout(() => window.print(), 300));
+})();
+</script>
+</body>
+</html>  
